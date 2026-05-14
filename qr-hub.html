@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="it">F-8">
+    <meta name="vi
+<head>
+    <meta charset="UTewport" content="width=device-width, initial-scale=1.0">
+    <title>QR-Master Hub | Archivio Privato</title>
+    <!-- Tailwind CSS per un design moderno e "bello" -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Libreria QR Code robusta -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .card { background: #1e293b; border: 1px solid #334155; }
+        #qrcode img { margin: 0 auto; border: 10px solid white; border-radius: 8px; }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-10 text-center">
+            <h1 class="text-4xl font-extrabold text-blue-400">QR-MASTER <span class="text-white">HUB</span></h1>
+            <p class="text-slate-400 mt-2">Generatore Statico Illimitato con Archivio Locale</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Pannello di Creazione -->
+            <div class="card p-6 rounded-2xl shadow-xl h-fit">
+                <h2 class="text-xl font-semibold mb-4 border-b border-slate-700 pb-2">Nuovo QR Code</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nome Identificativo</label>
+                        <input type="text" id="qrName" placeholder="es. Mappa Ufficio Valter" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">URL o Testo</label>
+                        <input type="text" id="qrText" placeholder="https://..." class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <button onclick="generateAndPreview()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-all">
+                        Genera Anteprima
+                    </button>
+                </div>
+
+                <div id="previewArea" class="hidden mt-6 text-center">
+                    <div id="qrcode" class="mb-4"></div>
+                    <div class="flex gap-2">
+                        <button onclick="saveToArchive()" class="flex-1 bg-green-600 hover:bg-green-500 py-2 rounded-lg text-sm font-bold">Salva in Archivio</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Archivio -->
+            <div class="lg:col-span-2 card p-6 rounded-2xl shadow-xl">
+                <h2 class="text-xl font-semibold mb-4 border-b border-slate-700 pb-2">I Tuoi QR Salvati</h2>
+                <div id="archiveGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- I QR salvati appariranno qui -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tempQRData = null;
+
+        // 1. Genera l'anteprima
+        function generateAndPreview() {
+            const name = document.getElementById('qrName').value;
+            const text = document.getElementById('qrText').value;
+            if(!name || !text) return alert("Inserisci nome e URL!");
+
+            document.getElementById('previewArea').classList.remove('hidden');
+            const qrcodeDiv = document.getElementById('qrcode');
+            qrcodeDiv.innerHTML = "";
+            
+            new QRCode(qrcodeDiv, {
+                text: text,
+                width: 200,
+                height: 200,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            tempQRData = { name, text, id: Date.now() };
+        }
+
+        // 2. Salva nell'archivio locale
+        function saveToArchive() {
+            let archive = JSON.parse(localStorage.getItem('myQRs') || "[]");
+            archive.push(tempQRData);
+            localStorage.setItem('myQRs', JSON.stringify(archive));
+            renderArchive();
+            resetForm();
+        }
+
+        // 3. Renderizza l'archivio
+        function renderArchive() {
+            const container = document.getElementById('archiveGrid');
+            const archive = JSON.parse(localStorage.getItem('myQRs') || "[]");
+            container.innerHTML = archive.length === 0 ? "<p class='text-slate-500'>Nessun QR salvato.</p>" : "";
+
+            archive.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 p-4 rounded-xl border border-slate-700 flex flex-col items-center";
+                card.innerHTML = `
+                    <div id="qr-${item.id}" class="bg-white p-2 rounded mb-2"></div>
+                    <p class="font-bold text-blue-400 truncate w-full text-center">${item.name}</p>
+                    <p class="text-xs text-slate-500 truncate w-full text-center mb-3">${item.text}</p>
+                    <div class="flex gap-2 w-full">
+                        <button onclick="downloadQR(${item.id}, '${item.name}')" class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-1 rounded">Scarica PNG</button>
+                        <button onclick="deleteQR(${item.id})" class="bg-red-900 hover:bg-red-800 px-2 py-1 rounded text-xs">Elimina</button>
+                    </div>
+                `;
+                container.appendChild(card);
+                
+                new QRCode(document.getElementById(`qr-${item.id}`), {
+                    text: item.text,
+                    width: 120,
+                    height: 120
+                });
+            });
+        }
+
+        // 4. Download Immagine
+        function downloadQR(id, name) {
+            const qrDiv = document.getElementById(`qr-${id}`);
+            const img = qrDiv.querySelector('img');
+            const link = document.createElement('a');
+            link.href = img.src;
+            link.download = `QR_${name.replace(/\s+/g, '_')}.png`;
+            link.click();
+        }
+
+        // 5. Elimina
+        function deleteQR(id) {
+            if(!confirm("Eliminare questo QR dall'archivio?")) return;
+            let archive = JSON.parse(localStorage.getItem('myQRs') || "[]");
+            archive = archive.filter(item => item.id !== id);
+            localStorage.setItem('myQRs', JSON.stringify(archive));
+            renderArchive();
+        }
+
+        function resetForm() {
+            document.getElementById('qrName').value = "";
+            document.getElementById('qrText').value = "";
+            document.getElementById('previewArea').classList.add('hidden');
+        }
+
+        window.onload = renderArchive;
+    </script>
+</body>
+</html>
